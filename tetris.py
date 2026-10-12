@@ -15,6 +15,8 @@ shapes = [
     [(2,0),(0,1),(1,1),(2,1)], # L
 ]
 
+block_symbols = ["[]", "55", "ZZ", "EE", "HH", "MM", "FF", "##"]
+
 def rotate(shape):
     return [(3 - y, x) for x, y in shape]
 
@@ -43,7 +45,7 @@ def clear_lines(board):
     board[:] = remaining
     return cleared
 
-def draw(stdscr, board, shape, x, y, score):
+def draw(stdscr, board, shape, x, y, score, block_symbol):
     stdscr.erase()
 
     stdscr.addstr(0, 2, "ASCII TETRIS")
@@ -56,14 +58,15 @@ def draw(stdscr, board, shape, x, y, score):
         line = "|"
 
         for col in range(width):
-            filled = bool(board[row][col])
+            cell = board[row][col]
 
             # Tambahkan block yang sedang jatuh.
             for dx, dy in shape:
                 if x + dx == col and y + dy == row:
-                    filled = True
+                    cell = block_symbol
+                    break
 
-            line += "[]" if filled else "  "
+            line += cell if cell else "  "
 
         line += "|"
         stdscr.addstr(3 + row, 2, line)
@@ -88,11 +91,12 @@ def main(stdscr):
     stdscr.keypad(True)
     stdscr.nodelay(True)
 
-    board = [[0] * width for _ in range(height)]
+    board = [[""] * width for _ in range(height)]
     score = 0
     game_over = False
 
     shape = random.choice(shapes)
+    block_symbol = random.choice(block_symbols)
     x, y = 3, 0
 
     last_fall = time.monotonic()
@@ -154,15 +158,14 @@ def main(stdscr):
                     ny = y + dy
 
                     if 0 <= ny < height:
-                        board[ny][nx] = 1
+                        board[ny][nx] = block_symbol
 
                 cleared = clear_lines(board)
-                score += [
-                    0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900, 2000, 2100, 2200, 2300, 2400, 2500, 2600, 2700, 2800, 2900, 3000, 3100, 3200, 3300, 3400, 3500, 3600, 3700, 3800, 3900, 4000
-                    ][cleared]
+                score += cleared * 100
 
                 # Buat block baru.
                 shape = random.choice(shapes)
+                block_symbol = random.choice(block_symbols)
                 x, y = 3, 0
 
                 if not can_move(board, shape, x, y):
@@ -170,7 +173,7 @@ def main(stdscr):
 
             last_fall = now
 
-        draw(stdscr, board, shape, x, y, score)
+        draw(stdscr, board, shape, x, y, score, block_symbol)
         time.sleep(0.03)
 
     # Tampilkan pesan akhir.
