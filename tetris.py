@@ -45,31 +45,71 @@ def clear_lines(board):
     board[:] = remaining
     return cleared
 
-def draw(stdscr, board, shape, x, y, score, block_symbol):
+def setup_colors():
+    if not curses.has_colors():
+        return {}
+
+    try:
+        curses.start_color()
+        purple = 129 if curses.COLORS >= 256 else curses.COLOR_MAGENTA
+        orange = 208 if curses.COLORS >= 256 else curses.COLOR_YELLOW
+    except curses.error:
+        return {}
+
+    try:
+        curses.use_default_colors()
+        background = -1
+    except curses.error:
+        background = curses.COLOR_BLACK
+
+    palette = [
+        curses.COLOR_CYAN,
+        curses.COLOR_YELLOW,
+        curses.COLOR_GREEN,
+        curses.COLOR_RED,
+        curses.COLOR_BLUE,
+        purple,
+        orange,
+    ]
+
+    color_pairs = {}
+    try:
+        for pair_id, symbol in enumerate(block_symbols, start=1):
+            color = palette[(pair_id - 1) % len(palette)]
+            curses.init_pair(pair_id, color,background)
+            color_pairs[symbol] = pair_id
+    except curses.error:
+        return {}
+
+    return color_pairs
+
+def draw(stdscr, board, shape, x, y, score, block_symbol, colored_mode, color_pairs):
     stdscr.erase()
 
     stdscr.addstr(0, 2, "ASCII TETRIS")
-    stdscr.addstr(1, 2, f"Score: {score}")
+    stdscr.addstr(1, 2, f"Score: {score} | color: {'ON' if colored_mode else 'OFF'}")
 
     # Gambar border papan.
     stdscr.addstr(2, 2, "+" + "--" * width + "+")
 
     for row in range(height):
-        line = "|"
+        stdscr.addstr(3 + row, 2, "|")
 
         for col in range(width):
             cell = board[row][col]
 
-            # Tambahkan block yang sedang jatuh.
             for dx, dy in shape:
                 if x + dx == col and y + dy == row:
                     cell = block_symbol
                     break
 
-            line += cell if cell else "  "
+            attribute = curses.A_NORMAL
+            if colored_mode and cell:
+                attribute = curses.color_pair(color_pairs[cell])
 
-        line += "|"
-        stdscr.addstr(3 + row, 2, line)
+            stdscr.addstr(3 + row, 3 + col * 2, cell if cell else "  ", attribute)
+
+        stdscr.addstr(3 + row, 3 + width * 2, "|")
 
     stdscr.addstr(
         3 + height, 2,
@@ -102,10 +142,13 @@ def main(stdscr):
     last_fall = time.monotonic()
     fall_delay = 0.5
 
+    color_pairs = setup_colors()
+    colored_mode = False
+
     while not game_over:
         rows, cols = stdscr.getmaxyx()
 
-        if rows < height + 4 or cols < 2 * width + 8:
+        if rows < height + 7 or cols < 38:
             stdscr.erase()
             stdscr.addstr(0, 0, f"Terminal terbaca: {rows} baris x {cols} kolom")
             stdscr.addstr(1, 0, "Kirim angka ukuran terminal ini.")
@@ -117,6 +160,9 @@ def main(stdscr):
 
         if key in (ord("q"), ord("Q")):
             break
+
+        elif key in (ord("c"), ord("C")) and color_pairs:
+            colored_mode = not colored_mode
 
         # Gerakan ke kiri & kanan.
         if key == curses.KEY_LEFT:
@@ -173,7 +219,7 @@ def main(stdscr):
 
             last_fall = now
 
-        draw(stdscr, board, shape, x, y, score, block_symbol)
+        draw(stdscr, board, shape, x, y, score, block_symbol, colored_mode, color_pairs)
         time.sleep(0.03)
 
     # Tampilkan pesan akhir.
