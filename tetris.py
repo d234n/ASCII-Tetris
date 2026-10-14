@@ -1,24 +1,52 @@
 import curses
 import random
 import time
+import os
 
 width = 10
 height = 20
 
+HIGH_SCORE_FILE = os.path.join(os.path.dirname(__file__), "high_score.txt")
+
 shapes = [
-    [(0,1),(1,1),(2,1),(3,1)], # I
-    [(1,0),(2,0),(1,1),(2,1)], # O
-    [(1,0),(0,1),(1,1),(2,1)], # T
-    [(1,0),(2,0),(0,1),(1,1)], # S
-    [(0,0),(1,0),(1,1),(2,1)], # Z
-    [(0,0),(0,1),(1,1),(2,1)], # J
-    [(2,0),(0,1),(1,1),(2,1)], # L
+    [(0, 1),(1, 1),(2, 1),(3, 1)], # I
+    [(1, 0),(2, 0),(1, 1),(2, 1)], # O
+    [(1, 0),(0, 1),(1, 1),(2, 1)], # T
+    [(1, 0),(2, 0),(0, 1),(1, 1)], # S
+    [(0, 0),(1, 0),(1, 1),(2, 1)], # Z
+    [(0, 0),(0, 1),(1, 1),(2, 1)], # J
+    [(2, 0),(0, 1),(1, 1),(2, 1)], # L
 ]
 
 block_symbols = ["[]", "55", "ZZ", "EE", "HH", "MM", "FF", "##"]
 
+def load_high_score():
+    try:
+        with open(HIGH_SCORE_FILE, "r", encoding="utf-8") as f:
+            value = f.read().strip()
+        return int(value) if value.isdigit() else 0
+    except (FileNotFoundError, ValueError):
+        return 0
+
+
+def save_high_score(score):
+    try:
+        with open(HIGH_SCORE_FILE, "w", encoding="utf-8") as f:
+            f.write(str(max(0, score)))
+    except OSError:
+        pass
+
+
+def update_high_score(current_score, best_score):
+    if current_score > best_score:
+        best_score = current_score
+        save_high_score(best_score)
+    return best_score
+
+
 def rotate(shape):
     return [(3 - y, x) for x, y in shape]
+
 
 def can_move(board, shape, x, y):
     for dx, dy in shape:
@@ -33,10 +61,9 @@ def can_move(board, shape, x, y):
 
     return True
 
+
 def clear_lines(board):
-    remaining = [
-        row for row in board if not all(row)
-    ]
+    remaining = [row for row in board if not all(row)]
     cleared = height - len(remaining)
 
     while len(remaining) < height:
@@ -44,6 +71,7 @@ def clear_lines(board):
 
     board[:] = remaining
     return cleared
+
 
 def setup_colors():
     if not curses.has_colors():
@@ -76,20 +104,20 @@ def setup_colors():
     try:
         for pair_id, symbol in enumerate(block_symbols, start=1):
             color = palette[(pair_id - 1) % len(palette)]
-            curses.init_pair(pair_id, color,background)
+            curses.init_pair(pair_id, color, background)
             color_pairs[symbol] = pair_id
     except curses.error:
         return {}
 
     return color_pairs
 
-def draw(stdscr, board, shape, x, y, score, block_symbol, colored_mode, color_pairs):
+
+def draw(stdscr, board, shape, x, y, score, best_score, block_symbol, colored_mode, color_pairs):
     stdscr.erase()
 
     stdscr.addstr(0, 2, "ASCII TETRIS")
-    stdscr.addstr(1, 2, f"Score: {score} | color: {'ON' if colored_mode else 'OFF'}")
+    stdscr.addstr(1, 2, f"Score: {score} | Best: {best_score} | color: {'ON' if colored_mode else 'OFF'}")
 
-    # Gambar border papan.
     stdscr.addstr(2, 2, "+" + "--" * width + "+")
 
     for row in range(height):
@@ -111,20 +139,12 @@ def draw(stdscr, board, shape, x, y, score, block_symbol, colored_mode, color_pa
 
         stdscr.addstr(3 + row, 3 + width * 2, "|")
 
-    stdscr.addstr(
-        3 + height, 2,
-        "#" + "%#" * width + "%"
-    )
-    stdscr.addstr(
-        5 + height, 2,
-        "Left/Right: move | Up: rotate"
-    )
-    stdscr.addstr(
-        6 + height, 2,
-        "Down: faster | Space: drop | Q: quit"
-    )
+    stdscr.addstr(3 + height, 2, "#" + "%#" * width + "%")
+    stdscr.addstr(5 + height, 2, "Left/Right: move | Up: rotate")
+    stdscr.addstr(6 + height, 2, "Down: faster | Space: drop | Q: quit")
 
     stdscr.refresh()
+
 
 def main(stdscr):
     curses.curs_set(0)
@@ -133,6 +153,7 @@ def main(stdscr):
 
     board = [[""] * width for _ in range(height)]
     score = 0
+    best_score = load_high_score()
     game_over = False
 
     shape = random.choice(shapes)
@@ -160,45 +181,33 @@ def main(stdscr):
 
         if key in (ord("q"), ord("Q")):
             break
-
         elif key in (ord("c"), ord("C")) and color_pairs:
             colored_mode = not colored_mode
 
-        # Gerakan ke kiri & kanan.
         if key == curses.KEY_LEFT:
             if can_move(board, shape, x - 1, y):
                 x -= 1
-
         elif key == curses.KEY_RIGHT:
             if can_move(board, shape, x + 1, y):
                 x += 1
-
-        # Putar block.
         elif key == curses.KEY_UP:
             rotated = rotate(shape)
             if can_move(board, rotated, x, y):
                 shape = rotated
-
-        # Percepat jatuh.
         elif key == curses.KEY_DOWN:
             if can_move(board, shape, x, y + 1):
                 y += 1
-
-        # Jatuhkan block langsung ke bawah.
         elif key == ord(" "):
-            while can_move(board, shape, x, y +1):
+            while can_move(board, shape, x, y + 1):
                 y += 1
             last_fall = 0
 
-        # Gravitasi.
         now = time.monotonic()
 
         if now - last_fall >= fall_delay:
             if can_move(board, shape, x, y + 1):
                 y += 1
             else:
-
-                # Block sudah mendarat. Simpan ke papan.
                 for dx, dy in shape:
                     nx = x + dx
                     ny = y + dy
@@ -208,8 +217,8 @@ def main(stdscr):
 
                 cleared = clear_lines(board)
                 score += cleared * 100
+                best_score = update_high_score(score, best_score)
 
-                # Buat block baru.
                 shape = random.choice(shapes)
                 block_symbol = random.choice(block_symbols)
                 x, y = 3, 0
@@ -219,17 +228,18 @@ def main(stdscr):
 
             last_fall = now
 
-        draw(stdscr, board, shape, x, y, score, block_symbol, colored_mode, color_pairs)
+        draw(stdscr, board, shape, x, y, score, best_score, block_symbol, colored_mode, color_pairs)
         time.sleep(0.03)
 
-    # Tampilkan pesan akhir.
     stdscr.nodelay(False)
     stdscr.erase()
     stdscr.addstr(2, 2, "GAME OVER!")
     stdscr.addstr(4, 2, f"Final score: {score}")
-    stdscr.addstr(6, 2, "Tekan tombol apa saja untuk keluar.")
+    stdscr.addstr(5, 2, f"Best score: {best_score}")
+    stdscr.addstr(7, 2, "Tekan tombol apa saja untuk keluar.")
     stdscr.refresh()
     stdscr.getch()
 
+
 if __name__ == "__main__":
-    curses.wrapper(main)                            
+    curses.wrapper(main)
