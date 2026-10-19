@@ -18,7 +18,9 @@ shapes = [
     [(2, 0),(0, 1),(1, 1),(2, 1)], # L
 ]
 
-block_symbols = ["[]", "55", "ZZ", "EE", "HH", "MM", "FF", "##"]
+block_symbols = [
+    "[]", "55", "##", "AA", "BB", "CC", "DD", "EE", "FF", "GG", "HH", "II", "JJ", "KK", "LL", "MM", "NN", "OO", "PP", "QQ", "RR", "SS", "TT", "UU", "VV", "WW", "XX", "YY", "ZZ"
+]
 
 def load_high_score():
     try:
@@ -118,10 +120,10 @@ def draw(stdscr, board, shape, x, y, score, best_score, block_symbol, colored_mo
     stdscr.addstr(0, 2, "ASCII TETRIS")
     stdscr.addstr(1, 2, f"Score: {score} | Best: {best_score} | color: {'ON' if colored_mode else 'OFF'}")
 
-    stdscr.addstr(2, 2, "+" + "--" * width + "+")
+    stdscr.addstr(2, 2, "." + "__" * (width + 2) + ".")
 
     for row in range(height):
-        stdscr.addstr(3 + row, 2, "|")
+        stdscr.addstr(3 + row, 2, "|#|")
 
         for col in range(width):
             cell = board[row][col]
@@ -135,13 +137,14 @@ def draw(stdscr, board, shape, x, y, score, best_score, block_symbol, colored_mo
             if colored_mode and cell:
                 attribute = curses.color_pair(color_pairs[cell])
 
-            stdscr.addstr(3 + row, 3 + col * 2, cell if cell else "  ", attribute)
+            stdscr.addstr(3 + row, 5 + col * 2, cell if cell else "  ", attribute)
 
-        stdscr.addstr(3 + row, 3 + width * 2, "|")
+        stdscr.addstr(3 + row, 5 + width * 2, "|#|")
 
-    stdscr.addstr(3 + height, 2, "#" + "%#" * width + "%")
-    stdscr.addstr(5 + height, 2, "Left/Right: move | Up: rotate")
-    stdscr.addstr(6 + height, 2, "Down: faster | Space: drop | Q: quit")
+    stdscr.addstr(3 + height, 2, "|" + "%#" * (width + 2) + "|")
+    stdscr.addstr(4 + height, 2, "`" + "¯¯" * (width + 2) + "´")
+    stdscr.addstr(6 + height, 2, "Left/Right: move | Up: rotate")
+    stdscr.addstr(7 + height, 2, "Down: faster | Space: drop | Q: quit")
 
     stdscr.refresh()
 
