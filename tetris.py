@@ -148,6 +148,17 @@ def draw(stdscr, board, shape, x, y, score, best_score, block_symbol, colored_mo
 
     stdscr.refresh()
 
+def pause_game(stdscr):
+    stdscr.erase()
+    stdscr.addstr(2, 2, "PAUSED")
+    stdscr.addstr(4, 2, "Tekan ESC untuk melanjutkan.")
+    stdscr.refresh()
+
+    stdscr.nodelay(False)
+    while stdscr.getch() != 27:  # ESC key
+        pass
+    stdscr.nodelay(True)
+
 
 def main(stdscr):
     curses.curs_set(0)
@@ -181,6 +192,11 @@ def main(stdscr):
             continue
 
         key = stdscr.getch()
+
+        if key == 27:  # ESC key
+            pause_game(stdscr)
+            last_fall = time.monotonic()  # Reset last_fall after pause
+            continue
 
         if key in (ord("q"), ord("Q")):
             break
